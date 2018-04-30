@@ -3,6 +3,11 @@ const sg = {
   scrollInitialized: false,
 };
 
+const exec = (fn, ...args) => forward => {
+  fn(...args);
+  return forward;
+};
+
 const registerScrollToView = (element, callback, allowNext, delay) => {
   
   sg.scrollListners.push({element, callback});
@@ -12,21 +17,16 @@ const registerScrollToView = (element, callback, allowNext, delay) => {
     window.onscroll = () => {
       if (!scrolled) {
         scrolled = setTimeout(() => {
-          const doneIndexes = [];
-          sg.scrollListners.forEach((scrollListner, index) => {
-            const { element, callback } = scrollListner;
 
-            if (isScrollIntoView(element) && !allowNext) {
-              doneIndexes.push(index);
-            }
+          const doneIndexes =
+            sg.scrollListners
+              .map(exec(callback, window.pageYOffset))
+              .map((x, index) => ({ ...x, index }))
+              .filter(({ element }) => isScrollIntoView(element) && !allowNext)
+              .map(({ index }) => index)
+              .forEach((index, doneIndex) =>
+                sg.scrollListners.splice(doneIndex, 1));
 
-            callback(window.pageYOffset);
-          });
-          
-          doneIndexes.forEach((index, doneIndex) => {
-            sg.scrollListners.splice(doneIndex, 1);
-          });
-          
           scrolled = null;
         }, delay);
       }
